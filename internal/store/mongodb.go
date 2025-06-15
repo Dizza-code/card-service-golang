@@ -1,0 +1,54 @@
+package store
+
+import (
+	"context"
+
+	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/mongo"
+	"go.mongodb.org/mongo-driver/mongo/options"
+)
+
+type Store struct {
+	Client    *mongo.Client
+	Db        *mongo.Database
+	Customers *mongo.Collection
+	Accounts  *mongo.Collection
+}
+
+// NewStore initializes a new Store instance with the provided MongoDB client and database name.
+func NewStore(dsn, dbName string) (*Store, error) {
+	//connect to mongoDb
+	client, err := mongo.Connect(context.Background(), options.Client().ApplyURI(dsn))
+	if err != nil {
+		return nil, err
+	}
+
+	//initialize database and collection
+	db := client.Database(dbName)
+	store := &Store{
+		Client:    client,
+		Db:        db,
+		Customers: db.Collection("customers"),
+		Accounts:  db.Collection("accounts"),
+	}
+
+	//create indexes for efficient queries
+	store.createIndexes()
+	return store, nil
+}
+
+// createIndex sets up indexes for fast lookups on the customers collection.
+func (s *Store) createIndexes() {
+	// Index on customer ID, email, and virtual account ID
+	s.Customers.Indexes().CreateMany(context.Background(), []mongo.IndexModel{
+		{Keys: bson.D{{Key: "_id", Value: 1}}, Options: options.Index().SetUnique(true)},
+		{Keys: bson.D{{Key: "customerId", Value: 1}}, Options: options.Index().SetUnique(true)},
+		{Keys: bson.D{{Key: "email", Value: 1}}, Options: options.Index().SetUnique(true)},
+		{Keys: bson.D{{Key: "sub_account_id", Value: 1}}, Options: options.Index().SetUnique(true)},
+	})
+}
+
+// Close disconnects the MongoDB client.
+func (s *Store) Close() {
+	s.Client.Disconnect(context.Background())
+}

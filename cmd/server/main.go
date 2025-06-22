@@ -31,16 +31,19 @@ func main() {
 	defer db.Close()
 
 	// Initialize services
-	apiClient := api.NewClient(cfg.CardAPIBaseURL, cfg.CardAPIKey)
+	// Update the arguments to match the actual NewClient signature in your api package
+	apiClient := api.NewClient(cfg.CardAPIBaseURL, cfg.SecureAPIBaseURL, cfg.CardAPIKey)
 	customerService := services.NewCustomerService(db, apiClient, logger)
+	cardService := services.NewCardService(db, apiClient, logger)
 
 	// Initialize handlers
 	customerHandler := handlers.NewCustomerHandler(customerService, cfg.SettlementAccount, logger)
+	cardHandler := handlers.NewCardHandler(cardService, logger)
 
 	// Set up Gin router
 	r := gin.Default()
 	r.POST("/api/customers", customerHandler.CreateCustomer)
-
+	r.POST("/api/cards", cardHandler.LinkCard)
 	// Start server
 	logger.Info("Starting server", zap.String("port", cfg.Port))
 	if err := r.Run(":" + cfg.Port); err != nil {

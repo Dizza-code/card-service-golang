@@ -13,6 +13,7 @@ type Store struct {
 	Db        *mongo.Database
 	Customers *mongo.Collection
 	Accounts  *mongo.Collection
+	Cards     *mongo.Collection
 }
 
 // NewStore initializes a new Store instance with the provided MongoDB client and database name.
@@ -30,6 +31,7 @@ func NewStore(dsn, dbName string) (*Store, error) {
 		Db:        db,
 		Customers: db.Collection("customers"),
 		Accounts:  db.Collection("accounts"),
+		Cards:     db.Collection("cards"),
 	}
 
 	//create indexes for efficient queries
@@ -45,6 +47,9 @@ func (s *Store) createIndexes() {
 		{Keys: bson.D{{Key: "customerId", Value: 1}}, Options: options.Index().SetUnique(true)},
 		{Keys: bson.D{{Key: "email", Value: 1}}, Options: options.Index().SetUnique(true)},
 		{Keys: bson.D{{Key: "sub_account_id", Value: 1}}, Options: options.Index().SetUnique(true)},
+	})
+	s.Cards.Indexes().CreateMany(context.Background(), []mongo.IndexModel{
+		{Keys: bson.D{{Key: "_id", Value: 1}}, Options: options.Index().SetUnique(true)},
 	})
 }
 

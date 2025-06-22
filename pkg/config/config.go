@@ -14,6 +14,7 @@ type Config struct {
 	WebhookSigningKey string
 	CardAPIKey        string
 	CardAPIBaseURL    string
+	SecureAPIBaseURL  string
 	Port              string
 	SettlementAccount string
 }
@@ -42,15 +43,16 @@ func Load(logger *zap.Logger) (*Config, error) {
 
 	cfg := &Config{
 		DatabaseURL: os.Getenv("DATABASE_URL"),
-		CardAPIKey:  "sk.test.b8mWEuSx.pGgN2smXZekawW1$F6F66x0CO-RG6zx$mcxYS4c5x1Ikdx7kZhK@ZKKrQNm8Wk00",
+		CardAPIKey:  "sk.test.2qSyx7x3.bZaUxCsxThZa$_4XPUZQM7PCz3$hYtcFmHO8$evgs_W1Z-@JmGz@Gdx1Qebez6WH",
 		// CardAPIKey:        os.Getenv("CARD_SERVER_API_KEY"),
 		CardAPIBaseURL:    os.Getenv("CARD_API_BASE_URL"),
+		SecureAPIBaseURL:  os.Getenv("SECURE_API_BASE_URL"),
 		Port:              os.Getenv("PORT"),
 		SettlementAccount: settlementAccount,
 	}
 	if cfg.CardAPIKey == "" {
-		logger.Error("CARD_SERVER_API_KEY is empty")
-		return nil, fmt.Errorf("CARD_SERVER_API_KEY is required")
+		logger.Error("CARD_API_KEY is empty")
+		return nil, fmt.Errorf("CARD_API_KEY is required")
 	}
 
 	keyHash := fmt.Sprintf("%x", sha256.Sum256([]byte(cfg.CardAPIKey)))
@@ -60,6 +62,7 @@ func Load(logger *zap.Logger) (*Config, error) {
 		zap.Int("cardAPIKeyLength", len(cfg.CardAPIKey)), // Debug length
 		zap.String("cardAPIKeyHash", keyHash),
 		zap.String("cardAPIBaseURL", cfg.CardAPIBaseURL),
+		zap.String("secureAPIBaseURL", cfg.SecureAPIBaseURL),
 		zap.String("port", cfg.Port),
 		zap.String("settlementAccount", cfg.SettlementAccount),
 	)

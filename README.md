@@ -16,7 +16,7 @@ Built with:
 - Secure webhook setup for transaction authorization
 
 ## Status
-🚧 In Progress — currently implementing card program setup and webhook handlers.
+🚧 Currently implementing card linking logic and preparing to store linked card response into MongoDB.
 
 ## Getting Started
 Clone and run:

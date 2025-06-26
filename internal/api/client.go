@@ -262,57 +262,32 @@ func (c *Client) CreateSubAccount(req CreateSubAccountRequest) (string, []Deposi
 }
 
 // create card linking
-type SpendingLimits struct {
-	Amount   int    `json:"amount"`
-	Interval string `json:"interval"` // e.g., "daily", "weekly", "monthly"
-}
-
-type CardControls struct {
-	AllowedChannels   []string         `json:"allowedChannels,omitempty"`
-	BlockedChannels   []string         `json:"blockedChannels,omitempty"`
-	AllowedMerchants  []string         `json:"allowedMerchants,omitempty"`
-	BlockedMerchants  []string         `json:"blockedMerchants,omitempty"`
-	AllowedCategories []string         `json:"allowedCategories,omitempty"`
-	BlockedCategories []string         `json:"blockedCategories,omitempty"`
-	SpendingLimits    []SpendingLimits `json:"spendingLimits,omitempty"`
-}
-
-type CardMetadata struct {
-	Name string `json:"name,omitempty"` // Name of the cardholder
-}
 
 type LinkCardRequest struct {
 	Pan           string        `json:"pan"`      // Primary Account Number (PAN) of the card
 	Customer      string        `json:"customer"` // ID of the customer associated with the card
 	FundingSource string        `json:"fundingSource"`
 	Reference     string        `json:"reference,omitempty"` // Reference ID for the card
-	Controls      *CardControls `json:"controls"`            // Card controls for spending limits and channels
-	Metadata      *CardMetadata `json:"metadata"`            // Metadata for the card
-}
-
-type CardDetails struct {
-	Last4          string `json:"last4"`          // Last 4 digits of the card
-	Expiry         string `json:"expiry"`         // Expiry date of the card in YYYY-MM format
-	CardHolderName string `json:"cardHolderName"` // Name of the cardholder
+	Controls      *CardControls `json:"controls,omitempty"`  // Card controls for spending limits and channels
+	Metadata      *CardMetadata `json:"metadata,omitempty"`  // Metadata for the card
 }
 
 type LinkCardResponse struct {
 	Code string `json:"code"` // Response code
 	Data struct {
-		ID             string         `json:"id"`       // Unique identifier for the linked card
-		Customer       string         `json:"customer"` // ID of the customer associated with the card
-		Details        CardDetails    `json:"details"`  // Details of the linked card
-		Program        string         `json:"program"`
-		Type           string         `json:"type"`     // Type of the card (e.g., "sub", "physical")
-		Status         string         `json:"status"`   // Status of the linked card (e.g., "active", "inactive")
-		Currency       string         `json:"currency"` // Currency of the card
-		Controls       CardControls   `json:"controls"`
-		SpendingLimits SpendingLimits `json:"spendingLimits"`
-		Metadata       CardMetadata   `json:"metadata"`      // Metadata for the card
-		FundingSource  string         `json:"fundingSource"` // Funding source for the card
-		Reference      string         `json:"reference"`     // Reference ID for the card
-		CreatedAt      string         `json:"createdAt"`     // Creation timestamp of the linked card
-		UpdatedAt      string         `json:"updatedAt"`     // Last update timestamp of the linked card
+		ID            string       `json:"id"`       // Unique identifier for the linked card
+		Customer      string       `json:"customer"` // ID of the customer associated with the card
+		Details       CardDetails  `json:"details"`  // Details of the linked card
+		Program       string       `json:"program"`
+		Type          string       `json:"type"`     // Type of the card (e.g., "sub", "physical")
+		Status        string       `json:"status"`   // Status of the linked card (e.g., "active", "inactive")
+		Currency      string       `json:"currency"` // Currency of the card
+		Controls      CardControls `json:"controls"`
+		Metadata      CardMetadata `json:"metadata"`      // Metadata for the card
+		FundingSource string       `json:"fundingSource"` // Funding source for the card
+		Reference     string       `json:"reference"`     // Reference ID for the card
+		CreatedAt     string       `json:"createdAt"`     // Creation timestamp of the linked card
+		UpdatedAt     string       `json:"updatedAt"`     // Last update timestamp of the linked card
 
 	} `json:"data"` // Data containing the linked card details
 }

@@ -25,80 +25,70 @@ func NewCardService(store *store.Store, client *api.Client, logger *zap.Logger) 
 }
 
 // LinkCard links a card to a customer and stores them in the mongoDB
-type SpendingLimit struct {
-	Amount   int
-	Interval string
-}
-type CardControls struct {
-	AllowedChannels   []string
-	BlockedChannels   []string
-	AllowedMerchants  []string
-	BlockedMerchants  []string
-	AllowedCategories []string
-	BlockedCategories []string
-	SpendingLimits    []SpendingLimit
-}
 
 type CardMetadata struct {
 	Name string
 }
 
 // Helper function to convert internal CardControls to *api.CardControls
-func convertToApiCardControls(c CardControls) *api.CardControls {
-	var spendingLimits []api.SpendingLimits
-	for _, sl := range c.SpendingLimits {
-		spendingLimits = append(spendingLimits, api.SpendingLimits{
-			Amount:   sl.Amount,
-			Interval: sl.Interval,
-		})
-	}
-	return &api.CardControls{
-		AllowedChannels:   c.AllowedChannels,
-		BlockedChannels:   c.BlockedChannels,
-		AllowedMerchants:  c.AllowedMerchants,
-		BlockedMerchants:  c.BlockedMerchants,
-		AllowedCategories: c.AllowedCategories,
-		BlockedCategories: c.BlockedCategories,
-		SpendingLimits:    spendingLimits,
-	}
-}
+// func convertToApiCardControls(c CardControls) *api.CardControls {
+// 	var spendingLimits []api.SpendingLimits
+// 	for _, sl := range c.SpendingLimits {
+// 		spendingLimits = append(spendingLimits, api.SpendingLimits{
+// 			Amount:   sl.Amount,
+// 			Interval: sl.Interval,
+// 		})
+// 	}
+// 	return &api.CardControls{
+// 		AllowedChannels:   c.AllowedChannels,
+// 		BlockedChannels:   c.BlockedChannels,
+// 		AllowedMerchants:  c.AllowedMerchants,
+// 		BlockedMerchants:  c.BlockedMerchants,
+// 		AllowedCategories: c.AllowedCategories,
+// 		BlockedCategories: c.BlockedCategories,
+// 		SpendingLimits:    spendingLimits,
+// 	}
+// }
 
-func convertToModelCardDetails(details api.CardDetails) models.CardDetails {
-	return models.CardDetails{
-		// Map each field from api.CardDetails to models.CardDetails here.
-		// Example:
-		// Field1: details.Field1,
-		// Field2: details.Field2,
-		// Add all necessary fields according to your struct definitions.
-	}
-}
+// func convertToModelCardDetails(details api.CardDetails) models.CardDetails {
+// 	return models.CardDetails{
+
+// 	}
+// }
 
 // Helper function to convert api.CardControls to models.Controls
-func convertToModelControls(apiControls api.CardControls) models.Controls {
-	var spendingLimits []models.SpendingLimits
-	for _, sl := range apiControls.SpendingLimits {
-		spendingLimits = append(spendingLimits, models.SpendingLimits{
-			Amount:   sl.Amount,
-			Interval: sl.Interval,
-		})
-	}
-	return models.Controls{
-		AllowedChannels:   fmt.Sprintf("%v", apiControls.AllowedChannels),
-		BlockedChannels:   fmt.Sprintf("%v", apiControls.BlockedChannels),
-		AllowedMerchants:  fmt.Sprintf("%v", apiControls.AllowedMerchants),
-		BlockedMerchants:  fmt.Sprintf("%v", apiControls.BlockedMerchants),
-		AllowedCategories: fmt.Sprintf("%v", apiControls.AllowedCategories),
-		BlockedCategories: fmt.Sprintf("%v", apiControls.BlockedCategories),
-		SpendingLimits: func() models.SpendingLimits {
-			if len(spendingLimits) > 0 {
-				return spendingLimits[0]
-			}
-			return models.SpendingLimits{}
-		}(),
-	}
-}
+// func convertToModelControls(apiControls api.CardControls) models.Controls {
+// 	var spendingLimits []models.SpendingLimits
+// 	for _, sl := range apiControls.SpendingLimits {
+// 		spendingLimits = append(spendingLimits, models.SpendingLimits{
+// 			Amount:   sl.Amount,
+// 			Interval: sl.Interval,
+// 		})
+// 	}
+// 	return models.Controls{
+// 		AllowedChannels:   fmt.Sprintf("%v", apiControls.AllowedChannels),
+// 		BlockedChannels:   fmt.Sprintf("%v", apiControls.BlockedChannels),
+// 		AllowedMerchants:  fmt.Sprintf("%v", apiControls.AllowedMerchants),
+// 		BlockedMerchants:  fmt.Sprintf("%v", apiControls.BlockedMerchants),
+// 		AllowedCategories: fmt.Sprintf("%v", apiControls.AllowedCategories),
+// 		BlockedCategories: fmt.Sprintf("%v", apiControls.BlockedCategories),
+// 		SpendingLimits: func() models.SpendingLimits {
+// 			if len(spendingLimits) > 0 {
+// 				return spendingLimits[0]
+// 			}
+// 			return models.SpendingLimits{}
+// 		}(),
+// 	}
+// }
 
-func (s *CardService) LinkCard(pan, customer, fundingSource, reference string, controls CardControls, metadata CardMetadata) (string, error) {
+func (s *CardService) LinkCard(
+	ctx context.Context,
+	pan,
+	customer,
+	fundingSource,
+	reference string,
+	controls *api.CardControls, metadata *api.CardMetadata) (string,
+	string, string, string, string, string, string, string, error) {
 	s.logger.Info("Starting linking card",
 		zap.String("pan", pan),
 		zap.String("customer", customer),
@@ -108,10 +98,10 @@ func (s *CardService) LinkCard(pan, customer, fundingSource, reference string, c
 	session, err := s.store.Client.StartSession()
 	if err != nil {
 		s.logger.Error("Failed to start MongoDB session", zap.Error(err))
-		return "", err
+		return "", "", "", "", "", "", "", "", err
 	}
 	defer session.EndSession(context.Background())
-	ctx := context.Background()
+	// ctx := context.Background()
 	//Determine funding source
 	// selectedFundingSource := fundingSource
 	// if selectedFundingSource == "" {
@@ -129,41 +119,50 @@ func (s *CardService) LinkCard(pan, customer, fundingSource, reference string, c
 	// 	}
 	// }
 	// Build the request to link the card
-	req := &api.LinkCardRequest{
+	req := api.LinkCardRequest{
 		Pan:           pan,
 		Customer:      customer,
 		FundingSource: fundingSource,
-		Controls:      convertToApiCardControls(controls),
-		Metadata: &api.CardMetadata{
-			Name: metadata.Name,
-		},
+		Controls:      controls,
+		Metadata:      metadata,
 	}
 
 	// Call the API to link the card
-	resp, err := s.client.LinkCard(*req)
+	resp, err := s.client.LinkCard(req)
 	if err != nil {
 		s.logger.Error("Failed to link card via API", zap.Error(err))
-		return "", err
+		return "", "", "", "", "", "", "", "", err
 	}
 
 	card := models.Card{
-		CardID:        resp.Data.ID,
-		CustomerID:    resp.Data.Customer,
-		FundingSource: resp.Data.FundingSource,
-		Details:       convertToModelCardDetails(resp.Data.Details),
-		Controls:      convertToModelControls(resp.Data.Controls),
-		Type:          resp.Data.Type,
-		Status:        resp.Data.Status,
-		Program:       resp.Data.Program,
-		Reference:     resp.Data.Reference,
-		CreatedAt:     time.Now(),
+		CardID:         resp.Data.ID,
+		CustomerID:     resp.Data.Customer,
+		FundingSource:  resp.Data.FundingSource,
+		Last4:          resp.Data.Details.Last4,
+		Expiry:         resp.Data.Details.Expiry,
+		CardHolderName: resp.Data.Details.CardHolderName,
+		Controls:       resp.Data.Controls,
+		Type:           resp.Data.Type,
+		Status:         resp.Data.Status,
+		Program:        resp.Data.Program,
+		Reference:      resp.Data.Reference,
+		Metadata:       resp.Data.Metadata,
+		CreatedAt:      time.Now(),
 	}
 
 	_, err = s.store.Cards.InsertOne(ctx, card)
 	if err != nil {
 		s.logger.Error("Failed to store card in MongoDB", zap.Error(err))
-		return "", err
+		return "", "", "", "", "", "", "", "", err
 	}
 	s.logger.Info("Stored card in MongoDB", zap.String("cardID", resp.Data.ID))
-	return resp.Data.ID, nil
+	return resp.Data.ID,
+		resp.Data.Details.Last4,
+		resp.Data.Details.Expiry,
+		resp.Data.Details.CardHolderName,
+		resp.Data.Type,
+		resp.Data.Status,
+		resp.Data.Program,
+		resp.Data.Currency,
+		nil
 }

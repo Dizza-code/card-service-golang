@@ -44,6 +44,7 @@ func main() {
 	r := gin.Default()
 	r.POST("/api/customers", customerHandler.CreateCustomer)
 	r.POST("/api/cards", cardHandler.LinkCard)
+	r.POST("api/cards/:id/activate", cardHandler.ActivateCard)
 	// Start server
 	logger.Info("Starting server", zap.String("port", cfg.Port))
 	if err := r.Run(":" + cfg.Port); err != nil {

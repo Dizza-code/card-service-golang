@@ -8,6 +8,8 @@ import (
 	"fmt"
 	"time"
 
+	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/mongo"
 	"go.uber.org/zap"
 )
 
@@ -29,57 +31,6 @@ func NewCardService(store *store.Store, client *api.Client, logger *zap.Logger) 
 type CardMetadata struct {
 	Name string
 }
-
-// Helper function to convert internal CardControls to *api.CardControls
-// func convertToApiCardControls(c CardControls) *api.CardControls {
-// 	var spendingLimits []api.SpendingLimits
-// 	for _, sl := range c.SpendingLimits {
-// 		spendingLimits = append(spendingLimits, api.SpendingLimits{
-// 			Amount:   sl.Amount,
-// 			Interval: sl.Interval,
-// 		})
-// 	}
-// 	return &api.CardControls{
-// 		AllowedChannels:   c.AllowedChannels,
-// 		BlockedChannels:   c.BlockedChannels,
-// 		AllowedMerchants:  c.AllowedMerchants,
-// 		BlockedMerchants:  c.BlockedMerchants,
-// 		AllowedCategories: c.AllowedCategories,
-// 		BlockedCategories: c.BlockedCategories,
-// 		SpendingLimits:    spendingLimits,
-// 	}
-// }
-
-// func convertToModelCardDetails(details api.CardDetails) models.CardDetails {
-// 	return models.CardDetails{
-
-// 	}
-// }
-
-// Helper function to convert api.CardControls to models.Controls
-// func convertToModelControls(apiControls api.CardControls) models.Controls {
-// 	var spendingLimits []models.SpendingLimits
-// 	for _, sl := range apiControls.SpendingLimits {
-// 		spendingLimits = append(spendingLimits, models.SpendingLimits{
-// 			Amount:   sl.Amount,
-// 			Interval: sl.Interval,
-// 		})
-// 	}
-// 	return models.Controls{
-// 		AllowedChannels:   fmt.Sprintf("%v", apiControls.AllowedChannels),
-// 		BlockedChannels:   fmt.Sprintf("%v", apiControls.BlockedChannels),
-// 		AllowedMerchants:  fmt.Sprintf("%v", apiControls.AllowedMerchants),
-// 		BlockedMerchants:  fmt.Sprintf("%v", apiControls.BlockedMerchants),
-// 		AllowedCategories: fmt.Sprintf("%v", apiControls.AllowedCategories),
-// 		BlockedCategories: fmt.Sprintf("%v", apiControls.BlockedCategories),
-// 		SpendingLimits: func() models.SpendingLimits {
-// 			if len(spendingLimits) > 0 {
-// 				return spendingLimits[0]
-// 			}
-// 			return models.SpendingLimits{}
-// 		}(),
-// 	}
-// }
 
 func (s *CardService) LinkCard(
 	ctx context.Context,
@@ -148,6 +99,7 @@ func (s *CardService) LinkCard(
 		Reference:      resp.Data.Reference,
 		Metadata:       resp.Data.Metadata,
 		CreatedAt:      time.Now(),
+		UpdatedAt:      time.Now(),
 	}
 
 	_, err = s.store.Cards.InsertOne(ctx, card)
@@ -165,4 +117,60 @@ func (s *CardService) LinkCard(
 		resp.Data.Program,
 		resp.Data.Currency,
 		nil
+}
+
+func (s *CardService) ActivateCard(ctx context.Context, cvv, pin string, cardID string) (string, error) {
+	s.logger.Info("Activating card",
+		zap.String("cvv", cvv),
+		zap.String("pin", pin),
+	)
+
+	// Check if card exists and is inactive
+	var card models.Card
+	err := s.store.Cards.FindOne(ctx, bson.M{"cardId": cardID}).Decode(&card)
+	if err == mongo.ErrNoDocuments {
+		s.logger.Error("Card not found", zap.String("cardID", cardID))
+		return "", fmt.Errorf("card not found")
+	}
+	if err != nil {
+		s.logger.Error("Failed to fetch card", zap.String("cardID", cardID), zap.Error(err))
+		return "", fmt.Errorf("failed to fetch card: %w", err)
+	}
+
+	if card.Status == "active" {
+		s.logger.Warn("Card already activated", zap.String("cardID", cardID))
+		return "", fmt.Errorf("card already activated")
+	}
+
+	req := api.ActivateCardRequest{
+		Cvv: cvv,
+		Pin: pin,
+	}
+
+	resp, err := s.client.ActivateCard(cardID, req)
+	if err != nil {
+		s.logger.Error("Failed to activate card via API", zap.Error(err))
+		return "", err
+	}
+
+	//update card status in MongoDB
+	update := bson.M{
+		"$set": bson.M{
+			"status":    "active",
+			"updatedAt": time.Now(),
+		},
+	}
+	_, err = s.store.Cards.UpdateOne(ctx, bson.M{"cardId": cardID}, update)
+	if err != nil {
+		s.logger.Error("Failed to update card status in MongoDB",
+			zap.String("cardID", cardID), zap.Error(err))
+		return "", fmt.Errorf("failed to update card status: %w", err)
+	}
+
+	s.logger.Info("Card activated successfully",
+		zap.String("code", resp.Code),
+		zap.String("message", resp.Message),
+	)
+
+	return resp.Code, nil
 }

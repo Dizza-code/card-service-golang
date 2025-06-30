@@ -43,7 +43,7 @@ func Load(logger *zap.Logger) (*Config, error) {
 
 	cfg := &Config{
 		DatabaseURL: os.Getenv("DATABASE_URL"),
-		CardAPIKey:  "",
+		CardAPIKey:  "sk.test.2qSyx7x3.bZaUxCsxThZa$_4XPUZQM7PCz3$hYtcFmHO8$evgs_W1Z-@JmGz@Gdx1Qebez6WH",
 		// CardAPIKey:        os.Getenv("CARD_SERVER_API_KEY"),
 		CardAPIBaseURL:    os.Getenv("CARD_API_BASE_URL"),
 		SecureAPIBaseURL:  os.Getenv("SECURE_API_BASE_URL"),

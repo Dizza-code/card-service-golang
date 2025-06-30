@@ -20,14 +20,8 @@ type Controls struct {
 	AllowedCategories []string         `bson:"allowedCategories"`
 	BlockedCategories []string         `bson:"blockedCategories"`
 	SpendingLimits    []SpendingLimits `bson:"spendingLimits"`
-	// Metadata         string   `bson:"Metadata"`
 }
 
-//	type CardDetails struct {
-//		Last4          string `bson:"last4"`
-//		Expiry         string `bson:"expiry"`
-//		CardholderName string `bson:"cardHolderName"`
-//	}
 type CardMetadata struct {
 	Name string `bson:"name"`
 }
@@ -46,4 +40,5 @@ type Card struct {
 	Controls       api.CardControls   `bson:"controls"`
 	Metadata       api.CardMetadata   `bson:"metadata"`
 	CreatedAt      time.Time          `bson:"createdAt"`
+	UpdatedAt      time.Time          `bson:"updatedAt"`
 }

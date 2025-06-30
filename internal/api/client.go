@@ -297,6 +297,15 @@ type AllaweeError struct {
 	Message string `json:"message"`
 }
 
+type ActivateCardRequest struct {
+	Cvv string `json:"cvv"` // Card Verification Value
+	Pin string `json:"pin"` //
+}
+type ActivateCardResponse struct {
+	Code    string `json:"code"`    // Response code
+	Message string `json:"message"` // Response message
+}
+
 func (c *Client) LinkCard(req LinkCardRequest) (LinkCardResponse, error) {
 	var response LinkCardResponse
 
@@ -377,5 +386,96 @@ func (c *Client) LinkCard(req LinkCardRequest) (LinkCardResponse, error) {
 		return response, fmt.Errorf("failed to unmarshal response: %w", err)
 	}
 
+	return response, nil
+}
+
+func (c *Client) ActivateCard(CardID string, req ActivateCardRequest) (ActivateCardResponse, error) {
+	var response ActivateCardResponse
+	if CardID == "" || req.Cvv == "" || req.Pin == "" {
+		c.logger.Error("Invalid ActivateCard request",
+			zap.String("CardID", CardID),
+			zap.String("cvv", req.Cvv),
+			zap.String("pin", req.Pin),
+		)
+		return response, fmt.Errorf("CardID, cvv and pin are required")
+	}
+	body, err := json.Marshal(req)
+	if err != nil {
+		c.logger.Error("Failed to marshal ActivateCard request", zap.Error(err))
+		return response, fmt.Errorf("failed to marshal request: %w", err)
+	}
+	//create request
+	httpReq, err := http.NewRequest("POST", c.secureBaseURL+"/cards/"+CardID+"/activate", bytes.NewBuffer(body))
+	if err != nil {
+		c.logger.Error("fialed to create activate card HTTP request", zap.Error(err))
+		return response, fmt.Errorf("failed to create ActivateCard request: %w", err)
+	}
+	httpReq.Header.Set("Authorization", "Bearer "+c.apiKey)
+	httpReq.Header.Set("Content-Type", "application/json")
+	c.logger.Info("Sending Activate Card request",
+		zap.String("url", httpReq.URL.String()),
+		zap.String("body", string(body)),
+		zap.String("authHeader", "Bearer "+c.apiKey[:4]+"..."),
+		zap.Any("headers", httpReq.Header),
+	)
+	// send request
+	resp, err := c.client.Do(httpReq)
+	if err != nil {
+		c.logger.Error("Failed to send ActivateCard request", zap.Error(err))
+		return response, fmt.Errorf("failed to send request: %w", err)
+	}
+	defer resp.Body.Close()
+	c.logger.Debug("Received response headers",
+		zap.Any("headers", resp.Header),
+		zap.Int64("contentLength", resp.ContentLength),
+	)
+	// Read response body
+	respBody, err := io.ReadAll((resp.Body))
+	if err != nil {
+		c.logger.Error("Failed to read ActivateCard response body", zap.Error(err))
+		return response, fmt.Errorf("failed to read response: %w", err)
+	}
+	c.logger.Info("Received ActivateCard response",
+		zap.Int("status", resp.StatusCode),
+		zap.String("body", string(respBody)),
+	)
+
+	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusCreated {
+		var allaweeErr AllaweeError
+		if err := json.Unmarshal(respBody, &allaweeErr); err == nil && allaweeErr.Code != "" {
+			c.logger.Error("ActivateCard request failed",
+				zap.Int("status", resp.StatusCode),
+				zap.String("code", allaweeErr.Code),
+				zap.String("message", allaweeErr.Message),
+			)
+			return response, fmt.Errorf("allawee error: %s - %s", allaweeErr.Code, allaweeErr.Message)
+		}
+		c.logger.Error("ActivateCard request failed",
+			zap.Int("status", resp.StatusCode),
+			zap.String("response", string(respBody)),
+		)
+		return response, fmt.Errorf("unexpected status code: %d, response: %s", resp.StatusCode, string(respBody))
+	}
+
+	//unmarshal the successful response
+	if err := json.Unmarshal(respBody, &response); err != nil {
+		c.logger.Error("Failed to unmarshal ActivateCard response", zap.Error(err))
+		return response, fmt.Errorf("failed to unmarshal response: %w", err)
+	}
+	c.logger.Info("ActivateCard request successful",
+		zap.String("cardID", CardID),
+		zap.String("responseCode", response.Code),
+		zap.String("responseMessage", response.Message),
+	)
+	if response.Code != "success" {
+		c.logger.Error("ActivateCard request failed",
+			zap.String("response", string(respBody)),
+		)
+		return response, fmt.Errorf("request failed: %s", string(respBody))
+	}
+	if response.Message == "" {
+		c.logger.Error("ActivateCard response message is empty", zap.String("response", string(respBody)))
+		return response, fmt.Errorf("ActivateCard response message is empty")
+	}
 	return response, nil
 }

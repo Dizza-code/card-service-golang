@@ -70,6 +70,16 @@ type LinkCardRequestResponse struct {
 	Metadata      api.CardMetadata `json:"metadata"`
 }
 
+type ActivateCardRequest struct {
+	Cvv string `json:"cvv" binding:"required"`
+	Pin string `json:"pin" binding:"required"`
+}
+
+type ActivateCardResponse struct {
+	Code    string `json:"code"`
+	Message string `json:"message"`
+}
+
 func convertSpendingLimits(limits []SpendingLimitRequest) []api.SpendingLimit {
 	result := make([]api.SpendingLimit, len(limits))
 	for i, l := range limits {
@@ -142,4 +152,27 @@ func (h *CardHandler) LinkCard(c *gin.Context) {
 		response.Controls = *controls
 	}
 	c.JSON(http.StatusCreated, response)
+}
+
+func (h *CardHandler) ActivateCard(c *gin.Context) {
+	var req ActivateCardRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		h.logger.Error("failed to bind request", zap.Error(err))
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	cardID := c.Param("id") // Assumes cardId is passed as a URL parameter, e.g., /cards/id/activate
+	code, err := h.cardService.ActivateCard(c.Request.Context(), req.Cvv, req.Pin, cardID)
+	if err != nil {
+		h.logger.Error("Failed to activate card", zap.Error(err))
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	response := ActivateCardResponse{
+		Code:    code,
+		Message: "Card activated successfully",
+	}
+	c.JSON(http.StatusOK, response)
 }

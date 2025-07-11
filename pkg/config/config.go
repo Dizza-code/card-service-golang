@@ -42,8 +42,9 @@ func Load(logger *zap.Logger) (*Config, error) {
 	logger.Info("Raw SETTLEMENT_ACCOUNT", zap.String("value", settlementAccount))
 
 	cfg := &Config{
-		DatabaseURL: os.Getenv("DATABASE_URL"),
-		CardAPIKey:  "",
+		DatabaseURL:       os.Getenv("DATABASE_URL"),
+		WebhookSigningKey: os.Getenv("WEBHOOK_SIGNING_KEY"),
+		CardAPIKey:        "",
 		// CardAPIKey:        os.Getenv("CARD_SERVER_API_KEY"),
 		CardAPIBaseURL:    os.Getenv("CARD_API_BASE_URL"),
 		SecureAPIBaseURL:  os.Getenv("SECURE_API_BASE_URL"),
@@ -58,6 +59,7 @@ func Load(logger *zap.Logger) (*Config, error) {
 	keyHash := fmt.Sprintf("%x", sha256.Sum256([]byte(cfg.CardAPIKey)))
 	logger.Info("Loaded configuration",
 		zap.String("databaseURL", cfg.DatabaseURL),
+		zap.String("webhookSigningKey", cfg.WebhookSigningKey),
 		zap.String("cardAPIKeyPrefix", cfg.CardAPIKey[:4]),
 		zap.Int("cardAPIKeyLength", len(cfg.CardAPIKey)), // Debug length
 		zap.String("cardAPIKeyHash", keyHash),

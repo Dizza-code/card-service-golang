@@ -133,18 +133,6 @@ func (c *Client) CreateCustomer(req CreateCustomerRequest) (string, error) {
 		return "", fmt.Errorf("unexpected status code: %d, response: %s", resp.StatusCode, string(respBody))
 	}
 
-	//parse the response
-	// var result CreateCustomerResponse
-	// if err := json.Unmarshal(respBody, &result); err != nil {
-	// 	c.logger.Error("Failed to parse CreateCustomer response", zap.Error(err), zap.ByteString("response", respBody))
-	// 	return "", err
-	// }
-
-	// if result.CustomerID == "" {
-	// 	c.logger.Error("Empty customer ID in CreateCustomer response", zap.ByteString("response", respBody))
-	// 	return "", fmt.Errorf("empty customer ID in response: %s", respBody)
-	// }
-	// return result.CustomerID, nil
 	var createResp CreateCustomerResponse
 	if err := json.Unmarshal(respBody, &createResp); err != nil {
 		return "", fmt.Errorf("failed to unmarshal response: %w", err)
@@ -477,5 +465,72 @@ func (c *Client) ActivateCard(CardID string, req ActivateCardRequest) (ActivateC
 		c.logger.Error("ActivateCard response message is empty", zap.String("response", string(respBody)))
 		return response, fmt.Errorf("ActivateCard response message is empty")
 	}
+	return response, nil
+}
+
+func (c *Client) GetAccountBalance(accountID string) (GetAccountBalanceResponse, error) {
+	var response GetAccountBalanceResponse
+	if accountID == "" {
+		c.logger.Error("Invalid GetAccountBalance request", zap.String("accountID", accountID))
+		return response, fmt.Errorf("accountID is required")
+	}
+
+	httpReq, err := http.NewRequest("GET", c.baseURL+"/accounts/"+accountID+"/balance", nil)
+	if err != nil {
+		return response, fmt.Errorf("failed to create request: %w", err)
+	}
+	httpReq.Header.Set("Authorization", "Bearer "+c.apiKey)
+	httpReq.Header.Set("Content-Type", "application/json")
+
+	c.logger.Info("Sending GetAccountBalance request",
+		zap.String("url", httpReq.URL.String()),
+		zap.String("authHeader", "Bearer "+c.apiKey[:4]+"..."),
+	)
+
+	resp, err := c.client.Do(httpReq)
+	if err != nil {
+		c.logger.Error("Failed to send request", zap.Error(err))
+		return response, fmt.Errorf("failed to send request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	respBody, err := io.ReadAll(resp.Body)
+	if err != nil {
+		c.logger.Error("Failed to read response body", zap.Error(err))
+		return response, fmt.Errorf("failed to read response: %w", err)
+	}
+
+	c.logger.Debug("Received GetAccountBalance response",
+		zap.Int("status", resp.StatusCode),
+		zap.String("body", string(respBody)),
+	)
+
+	if resp.StatusCode != http.StatusOK {
+		var allaweeErr AllaweeError
+		if err := json.Unmarshal(respBody, &allaweeErr); err == nil && allaweeErr.Code != "" {
+			c.logger.Error("GetAccountBalance request failed",
+				zap.Int("status", resp.StatusCode),
+				zap.String("code", allaweeErr.Code),
+				zap.String("message", allaweeErr.Message),
+			)
+			return response, fmt.Errorf("allawee error: %s - %s", allaweeErr.Code, allaweeErr.Message)
+		}
+		c.logger.Error("GetAccountBalance request failed",
+			zap.Int("status", resp.StatusCode),
+			zap.String("response", string(respBody)),
+		)
+		return response, fmt.Errorf("unexpected status code: %d, response: %s", resp.StatusCode, string(respBody))
+	}
+
+	if err := json.Unmarshal(respBody, &response); err != nil {
+		c.logger.Error("Failed to unmarshal response", zap.Error(err))
+		return response, fmt.Errorf("failed to unmarshal response: %w", err)
+	}
+
+	if response.Code != "success" {
+		c.logger.Error("Invalid response", zap.String("response", string(respBody)))
+		return response, fmt.Errorf("request failed: %s", string(respBody))
+	}
+
 	return response, nil
 }

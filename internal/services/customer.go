@@ -43,54 +43,6 @@ func (s *CustomerService) CreateCustomer(name, firstName, lastName, middleName, 
 	}
 	defer session.EndSession(context.Background())
 
-	// ctx := context.Background()
-	//create customer with external api
-	// req := api.CreateCustomerRequest{
-	// 	Name: name,
-	// 	Type: "individual",
-	// 	Claims: api.CustomerClaims{
-	// 		IndividualInformation: struct {
-	// 			FirstName       string `json:"firstName"`
-	// 			LastName        string `json:"lastName"`
-	// 			MiddleName      string `json:"middleName"`
-	// 			Email           string `json:"email"`
-	// 			PhoneNumber     string `json:"phoneNumber"`
-	// 			Title           string `json:"title"`
-	// 			Gender          string `json:"gender"`
-	// 			DateOfBirth     string `json:"dateOfBirth"`
-	// 			NationalityCode string `json:"nationalityCode"`
-	// 		}{
-	// 			FirstName:       firstName,
-	// 			LastName:        lastName,
-	// 			MiddleName:      middleName,
-	// 			Email:           email,
-	// 			PhoneNumber:     phoneNumber,
-	// 			Title:           title,
-	// 			Gender:          gender,
-	// 			DateOfBirth:     dob,
-	// 			NationalityCode: nationalityCode,
-	// 		},
-	// 		IndividualIdentity: struct {
-	// 			Type               string `json:"type"`
-	// 			ID                 string `json:"id"`
-	// 			IssuingCountryCode string `json:"issuingCountryCode"`
-	// 		}{
-	// 			Type:               idType,
-	// 			ID:                 idNumber,
-	// 			IssuingCountryCode: issuingCountry,
-	// 		},
-	// 	},
-	// 	Verification: []api.CustomerVerification{
-	// 		{
-	// 			Type:   "tier-2",
-	// 			Status: "verified",
-	// 		},
-	// 	},
-	// 	Metadata: api.CustomerMetadata{
-	// 		UserID: userID,
-	// 		Ref:    ref,
-	// 	},
-	// }
 	req := api.CreateCustomerRequest{
 		Name: name,
 		Type: "individual",
@@ -174,6 +126,7 @@ func (s *CustomerService) CreateCustomer(name, firstName, lastName, middleName, 
 		CustomerID:      customerID,
 		Name:            name,
 		DepositChannels: depositChannelModels,
+		Status:          "active", //default status is active
 		CreatedAt:       time.Now(),
 	}
 

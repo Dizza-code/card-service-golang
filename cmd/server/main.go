@@ -35,16 +35,19 @@ func main() {
 	apiClient := api.NewClient(cfg.CardAPIBaseURL, cfg.SecureAPIBaseURL, cfg.CardAPIKey)
 	customerService := services.NewCustomerService(db, apiClient, logger)
 	cardService := services.NewCardService(db, apiClient, logger)
+	webhookService := services.NewWebhookService(db, apiClient, logger)
 
 	// Initialize handlers
 	customerHandler := handlers.NewCustomerHandler(customerService, cfg.SettlementAccount, logger)
 	cardHandler := handlers.NewCardHandler(cardService, logger)
+	webhookHandler := handlers.NewWebhookHandler(webhookService, logger, cfg.WebhookSigningKey)
 
 	// Set up Gin router
 	r := gin.Default()
 	r.POST("/api/customers", customerHandler.CreateCustomer)
 	r.POST("/api/cards", cardHandler.LinkCard)
 	r.POST("api/cards/:id/activate", cardHandler.ActivateCard)
+	r.POST("/webhooks", webhookHandler.HandleWebhook)
 	// Start server
 	logger.Info("Starting server", zap.String("port", cfg.Port))
 	if err := r.Run(":" + cfg.Port); err != nil {

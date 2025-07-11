@@ -1,108 +1,114 @@
 package handlers
 
-// import (
-// 	"bytes"
-// 	"card-service/internal/services"
-// 	"crypto/hmac"
-// 	"crypto/sha512"
-// 	"encoding/hex"
-// 	"encoding/json"
-// 	"io/ioutil"
-// 	"time"
+import (
+	"card-service/internal/api"
+	"card-service/internal/services"
+	"crypto/hmac"
+	"crypto/sha512"
+	"encoding/hex"
+	"encoding/json"
+	"fmt"
+	"net/http"
 
-// 	"github.com/gin-gonic/gin"
-// )
+	"github.com/gin-gonic/gin"
+	"go.uber.org/zap"
+)
 
-// type WebhookHandler struct {
-// 	signingKey  string
-// 	authService *services.AuthorizationService
-// }
+type WebhookHandler struct {
+	webhookService *services.WebhookService
+	logger         *zap.Logger
+	signingKey     string
+}
 
-// func NewWebhookHandler(signingKey string, authService *services.AuthorizationService) *WebhookHandler {
-// 	return &WebhookHandler{signingKey: signingKey, authService: authService}
-// }
+func NewWebhookHandler(webhookService *services.WebhookService, logger *zap.Logger, signingKey string) *WebhookHandler {
+	return &WebhookHandler{
+		webhookService: webhookService,
+		logger:         logger,
+		signingKey:     signingKey,
+	}
+}
 
-// type AllaweeEventBody struct {
-// 	Event    string                   `json:"event"`
-// 	Data     AllaweeAuthorizationData `json:"data"`
-// 	Metadata AllaweeEventBodyMetadata `json:"metadata"`
-// }
+func (h *WebhookHandler) HandleWebhook(c *gin.Context) {
+	//verify signature
+	body, err := c.GetRawData()
+	if err != nil {
+		h.logger.Error("failed to read request body", zap.Error(err))
+		c.JSON(http.StatusBadRequest, gin.H{"error": "failed to read request"})
+		return
+	}
+	signature := c.GetHeader("Allawee-Signature")
+	hash := hmac.New(sha512.New, []byte(h.signingKey))
+	hash.Write(body)
+	expected := hex.EncodeToString(hash.Sum(nil))
+	if signature != expected {
+		h.logger.Error("invalid signature",
+			zap.String("received", signature),
+			zap.String("expected", expected),
+		)
+		c.JSON(http.StatusBadRequest, gin.H{"message": "invalid-signature"})
+		return
+	}
 
-// type AllaweeAuthorizationData struct {
-// 	Card          string                          `json:"card"`
-// 	Type          string                          `json:"type"`
-// 	Id            string                          `json:"id"`
-// 	Amount        int64                           `json:"amount"`
-// 	Fees          int64                           `json:"fees"`
-// 	Channel       string                          `json:"channel"`
-// 	Reserved      bool                            `json:"reserved"`
-// 	NetworkData   AllaweeEventBodyDataNetworkData `json:"networkData"`
-// 	CreatedAt     time.Time                       `json:"createdAt"`
-// 	Status        string                          `json:"status"`
-// 	DeclineReason string                          `json:"declineReason"`
-// 	DecisionType  string                          `json:"decisionType"`
-// 	Currency      string                          `json:"currency"`
-// }
+	var event api.WebhookEvent
+	if err := json.Unmarshal(body, &event); err != nil {
+		h.logger.Error("Failed to bind webhook event", zap.Error(err))
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
 
-// type AllaweeEventBodyDataNetworkData struct {
-// 	Rrn                      string `json:"rrn"`
-// 	Stan                     string `json:"stan"`
-// 	Network                  string `json:"network"`
-// 	TxnReference             string `json:"txnReference"`
-// 	CardAcceptorNameLocation string `json:"cardAcceptorNameLocation"`
-// }
+	switch event.Event {
+	case "card.transaction.created":
+		var transaction api.TransactionEvent
+		if err := json.Unmarshal(body, &event); err != nil {
+			h.logger.Error("failed to bind transaction event", zap.Error(err))
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			return
+		}
+		event.Data = transaction
 
-// type AllaweeEventBodyMetadata struct {
-// 	CreatedAt time.Time `json:"createdAt"`
-// 	Event     string    `json:"event"`
-// }
+	case "card.authorization.request":
+		var authRequest api.AuthorizationRequestEvent
+		if err := json.Unmarshal(body, &err); err != nil {
+			h.logger.Error("failed to bind authorization event", zap.Error(err))
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			return
+		}
+		event.Data = authRequest
 
-// func (h *WebhookHandler) Handle(c *gin.Context) {
-// 	body := h.verifyRequest(c)
-// 	if body == nil {
-// 		return
-// 	}
+	case "card.authorization.closed":
+		var authClosed api.AuthorizationClosedEvent
+		if err := json.Unmarshal(body, &err); err != nil {
+			h.logger.Error("failed to bind authorization closed", zap.Error(err))
+			return
+		}
+		event.Data = authClosed
 
-// 	switch body.Event {
-// 	case "card.authorization.request":
-// 		response := h.authService.ProcessRequest(body)
-// 		c.JSON(200, response)
-// 	case "card.authorization.closed":
-// 		response := h.authService.ProcessClosed(body)
-// 		c.JSON(200, response)
-// 	case "card.authorization.update":
-// 		response := h.authService.ProcessUpdate(body)
-// 		c.JSON(200, response)
-// 	case "card.transaction.created":
-// 		c.JSON(200, gin.H{"code": "success"})
-// 	default:
-// 		c.JSON(400, gin.H{"error": "Invalid Request"})
-// 	}
-// }
+	default:
+		h.logger.Error("unknown event type", zap.String("event", event.Event))
+		c.JSON(http.StatusBadRequest, gin.H{"error": fmt.Sprintf("unknown event type: %s", event.Event)})
+		return
+	}
+	h.logger.Info("Received webhook event", zap.String("event", event.Event))
 
-// func (h *WebhookHandler) verifyRequest(c *gin.Context) *AllaweeEventBody {
-// 	signature := c.GetHeader("Allawee-Signature")
-// 	reqBody, _ := ioutil.ReadAll(c.Request.Body)
-// 	c.Request.Body = ioutil.NopCloser(bytes.NewBuffer(reqBody)) // Restore body for binding
+	response, err := h.webhookService.HandleWebhook(c.Request.Context(), event)
+	if err != nil {
+		h.logger.Error("failed to handle event webhook", zap.String("event", event.Event), zap.Error(err))
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	if response.Action != "" {
+		c.JSON(http.StatusOK, response)
+	} else {
+		c.JSON(http.StatusOK, gin.H{"code": "success"})
+		return
+	}
 
-// 	hash := hmacHashHex(h.signingKey, string(reqBody))
-// 	if hash != signature {
-// 		c.JSON(400, gin.H{"error": "Invalid Signature"})
-// 		return nil
-// 	}
+	// Log the response sent to Allawee
+	responseBytes, _ := json.Marshal(response)
+	h.logger.Info("Webhook response sent",
+		zap.String("event", event.Event),
+		zap.String("response", string(responseBytes)),
+	)
 
-// 	var body AllaweeEventBody
-// 	err := json.Unmarshal(reqBody, &body)
-// 	if err != nil {
-// 		c.JSON(400, gin.H{"error": "Invalid Request"})
-// 		return nil
-// 	}
-
-// 	return &body
-// }
-
-// func hmacHashHex(key, secret string) string {
-// 	h := hmac.New(sha512.New, []byte(key))
-// 	h.Write([]byte(secret))
-// 	return hex.EncodeToString(h.Sum(nil))
-// }
+	c.JSON(200, response)
+}

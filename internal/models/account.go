@@ -20,5 +20,6 @@ type Account struct {
 	AccountID       string             `bson:"accountId"`
 	Name            string             `bson:"name"`
 	DepositChannels []DepositChannel   `bson:"depositChannels"`
+	Status          string             `bson:"status"`
 	CreatedAt       time.Time          `bson:"createdAt"`
 }

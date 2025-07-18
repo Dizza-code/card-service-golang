@@ -123,7 +123,7 @@ func (s *WebhookService) HandleAuthorizationRequest(ctx context.Context, event a
 			zap.String("stauts", event.Status),
 			zap.String("cardID", event.CardID),
 		)
-		return api.AuthorizationResponse{Action: "declined", Code: "invalid transaction"}, fmt.Errorf("invalid status:%s", event.Status)
+		return api.AuthorizationResponse{Action: "declined", Code: "invalid-transaction"}, fmt.Errorf("invalid status:%s", event.Status)
 	}
 
 	//fetch the card from the database

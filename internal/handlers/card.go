@@ -176,3 +176,22 @@ func (h *CardHandler) ActivateCard(c *gin.Context) {
 	}
 	c.JSON(http.StatusOK, response)
 }
+
+func (h *CardHandler) GetCardById(c *gin.Context) {
+	cardID := c.Param("id")
+	card, err := h.cardService.GetCardById(c.Request.Context(), cardID)
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"message": "card not found"})
+		return
+	}
+	c.JSON(http.StatusOK, card)
+}
+
+func (h *CardHandler) GetAllCards(c *gin.Context) {
+	card, err := h.cardService.GetAllCards(c.Request.Context())
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"message": "Not cards returned"})
+		return
+	}
+	c.JSON(http.StatusOK, card)
+}

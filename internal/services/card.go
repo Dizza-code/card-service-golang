@@ -53,7 +53,7 @@ func (s *CardService) LinkCard(
 	}
 	defer session.EndSession(context.Background())
 	// ctx := context.Background()
-	//Determine funding source
+	// Determine funding source
 	// selectedFundingSource := fundingSource
 	// if selectedFundingSource == "" {
 	// 	//fetch primary sub-account
@@ -115,7 +115,7 @@ func (s *CardService) LinkCard(
 		resp.Data.Type,
 		resp.Data.Status,
 		resp.Data.Program,
-		resp.Data.Currency,
+		resp.Data.Reference,
 		nil
 }
 
@@ -173,4 +173,35 @@ func (s *CardService) ActivateCard(ctx context.Context, cvv, pin string, cardID 
 	)
 
 	return resp.Code, nil
+}
+
+// get cards from Db
+func (s *CardService) GetCardById(ctx context.Context, cardID string) (*models.Card, error) {
+	var card models.Card
+	err := s.store.Cards.FindOne(ctx, bson.M{"cardId": cardID}).Decode(&card)
+	if err == mongo.ErrNoDocuments {
+		s.logger.Warn("Card not found", zap.String("CardID", cardID))
+		return nil, fmt.Errorf("card not found")
+	}
+	if err != nil {
+		s.logger.Info("Failed to fetch card", zap.String("CardID", cardID), zap.Error(err))
+		return nil, fmt.Errorf("failed to fetch card")
+	}
+
+	return &card, nil
+}
+
+func (s *CardService) GetAllCards(ctx context.Context) ([]models.Card, error) {
+	var results []models.Card
+	cursor, err := s.store.Cards.Find(context.TODO(), bson.M{})
+	if err != nil {
+		s.logger.Info("Failed to fetch all cards", zap.Error(err))
+		return nil, fmt.Errorf("cannot fetch cards")
+	}
+	err = cursor.All(context.TODO(), &results)
+	if err != nil {
+		s.logger.Info("Failed to fetch all cards", zap.Error(err))
+		return nil, fmt.Errorf("cannot fetch cards")
+	}
+	return results, nil
 }

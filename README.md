@@ -17,7 +17,9 @@ Built with:
 
 ## Status
 ✅ Card linking complete. Currently working on structuring card data responses and persisting them to MongoDB. 
-🚧 Next up: card activation and webhook handling.
+✅ Completed Card Linking and Card Activate
+✅ Completed Events Handling(Webhook Flow) and Card authorization
+✅ Completed Get Card and Get Card by ID functions
 
 ## Getting Started
 Clone and run:
